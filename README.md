@@ -1,5 +1,10 @@
 # smart-velov-api
 
+## Prerequisites
+- autotools
+- curl
+- osmosis
+
 ## Installation
 ```
 git clone https://github.com/fat-gyft/smart-velov-api.git
