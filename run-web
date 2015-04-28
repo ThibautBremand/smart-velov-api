@@ -1,0 +1,4 @@
+#!/bin/bash
+cd graphhopper
+./graphhopper.sh web europe_france_rhone-alpes_lyon_velov.pbf
+cd ..
