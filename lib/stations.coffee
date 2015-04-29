@@ -1,9 +1,11 @@
 fs      = require 'fs'
 log     = require('./log')(module)
+kd      = require 'kdtree'
 request = require 'request'
 
 dirty = true
 stations = {}
+stationsTree = new kd.KDTree 2 # 2 dimensions for lat and lng
 
 module.exports.supportedContracts = ['Lyon']
 module.exports.necessaryProperties = [
@@ -33,6 +35,12 @@ module.exports.all = ->
 
       dirty = false
       stations = JSON.parse fileData
+
+      # Replacing tree content
+      stationsTree = new kd.KDTree 2
+      for s in stations
+        stationsTree.insert s.position.lng, s.position.lat, s.number
+
       log.info 'Loaded stations file successfully.'
     catch e
       stations = {}
@@ -90,11 +98,29 @@ module.exports.save = (stationsToAdd) ->
 
   fs.writeFile './data/stations-data.json', JSON.stringify(stations), (err) ->
     throw err if err
+
     log.info 'Saved stations file successfully.'
+
+    # Updates internal representations
     dirty = true
+    stations = module.exports.all()
 
 module.exports.update = (apiKey, callback) ->
   request 'https://api.jcdecaux.com/vls/v1/stations?contract=Lyon&apiKey=' +
   apiKey, (err, res, body) ->
     module.exports.save JSON.parse body
     callback err, res, stations if callback
+
+module.exports.nearest = (position, callback) ->
+  stations = module.exports.all()
+
+  nearest = stationsTree.nearest position.lng, position.lat
+
+  console.dir e: nearest
+
+  if 0 == nearest.length
+    err = 'Could not found nearest station'
+    err.status = 404
+    return callback err
+
+  callback null, stations["#{nearest[2]}"]
