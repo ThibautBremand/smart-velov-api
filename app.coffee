@@ -7,6 +7,8 @@ logger     = require 'express-logger'
 multer     = require 'multer'
 path       = require 'path'
 request    = require 'request'
+gh         = new (require './lib/graphhopper')('http://aurelienbertron.fr:8989')
+_          = require 'underscore'
 
 # Database
 stations = require './lib/stations'
@@ -15,6 +17,7 @@ stations.update process.env.VELOV_API_KEY, (err) ->
   throw err if err
   log.info 'Updated successfully.'
 
+gh.default vehicle: 'bike2', instructions: true, locale: 'fr'
 
 # Express setup
 app = express()
@@ -37,6 +40,26 @@ app.get '/station/:lng/:lat', (req, res, next) ->
     console.log err if err
     console.log yo: nearest
 
+app.get '/route/:start/:end', (req, res, next) ->
+  gh.route [req.params.start,req.params.end]
+  url = gh.doRequest {}, (ghErr, ghRes) ->
+    if ghErr
+      next ghErr
+    else
+      body = ''
+      ghRes.on 'data', (chunk) ->
+        body += chunk
+      ghRes.on 'end', ->
+        jbody = JSON.parse(body)
+        _.each(jbody.paths, (path) ->
+          _.each(path.instructions, (ins) ->
+            delete ins.text
+            delete ins.time
+            delete ins.distance
+          )
+        )
+        delete jbody.info
+        res.json jbody
 
 app.use (req, res, next) ->
   log.debug "Could not find URL #{req.url}"
