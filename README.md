@@ -19,3 +19,9 @@ Run web server: `./run-web`
 Clean only generated graph: `make clean`
 
 Clean ALL maps: `make clean-map`
+
+## Documentation de l'API
+
+The API root is `http://aurelienbertron.fr/api/`
+
+The API documentation is available at [http://docs.smartvelov.apiary.io/](http://docs.smartvelov.apiary.io/)

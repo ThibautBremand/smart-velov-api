@@ -34,7 +34,7 @@ app.use multer()
 app.use logger path: 'logs/log.txt'
 
 
-app.get '/station/:lng/:lat', (req, res, next) ->
+app.get '/station/:lat/:lng', (req, res, next) ->
   res.send hello: 'bonjour'
   stations.nearest lat: req.params.lat, lng: req.params.lng, (err, nearest) ->
     console.log err if err
