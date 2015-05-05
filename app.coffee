@@ -40,9 +40,10 @@ app.get '/station/:lat/:lng', (req, res, next) ->
     console.log err if err
     console.log yo: nearest
 
-app.get '/route/:start/:end', (req, res, next) ->
+app.get '/route/:start/:end/(:vehicle)?', (req, res, next) ->
+  options = if req.params.vehicle? then {vehicle: req.params.vehicle} else {}
   gh.route [req.params.start,req.params.end]
-  url = gh.doRequest {}, (ghErr, ghRes) ->
+  url = gh.doRequest options, (ghErr, ghRes) ->
     if ghErr
       next ghErr
     else
