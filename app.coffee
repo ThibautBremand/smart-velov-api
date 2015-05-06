@@ -35,10 +35,9 @@ app.use logger path: 'logs/log.txt'
 
 
 app.get '/station/:lat/:lng', (req, res, next) ->
-  res.send hello: 'bonjour'
   stations.nearest lat: req.params.lat, lng: req.params.lng, (err, nearest) ->
-    console.log err if err
-    console.log yo: nearest
+    next err if err
+    res.json nearest
 
 app.get '/route/:start/:end/(:vehicle)?', (req, res, next) ->
   options = if req.params.vehicle? then {vehicle: req.params.vehicle} else {}

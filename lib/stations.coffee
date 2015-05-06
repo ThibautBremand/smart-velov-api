@@ -2,6 +2,7 @@ fs      = require 'fs'
 log     = require('./log')(module)
 kd      = require 'kdtree'
 request = require 'request'
+_       = require 'underscore'
 
 dirty = true
 stations = {}
@@ -38,8 +39,9 @@ module.exports.all = ->
 
       # Replacing tree content
       stationsTree = new kd.KDTree 2
-      for s in stations
-        stationsTree.insert s.position.lng, s.position.lat, s.number
+      _.each stations, (infos, num) ->
+        stationsTree.insert infos.position.lat, infos.position.lng, infos.number
+        return
 
       log.info 'Loaded stations file successfully.'
     catch e
@@ -89,7 +91,7 @@ module.exports.save = (stationsToAdd) ->
     found.available_bike_stands =
         toAdd.available_bike_stands ? found.available_bike_stands
     found.available_bikes = toAdd.available_bikes ? found.available_bikes
-    
+
     missing = missingProperty found
     if missing
       throw new Error "Missing property #{missing}"
@@ -114,9 +116,7 @@ module.exports.update = (apiKey, callback) ->
 module.exports.nearest = (position, callback) ->
   stations = module.exports.all()
 
-  nearest = stationsTree.nearest position.lng, position.lat
-
-  console.dir e: nearest
+  nearest = stationsTree.nearest position.lat, position.lng
 
   if 0 == nearest.length
     err = 'Could not found nearest station'

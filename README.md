@@ -20,7 +20,14 @@ Clean only generated graph: `make clean`
 
 Clean ALL maps: `make clean-map`
 
-## Documentation de l'API
+## Running the API server
+To run the server, simply run `npm start`.
+
+By default, the server uses HTTPS protocol on the port 3000, but if you don't want to use HTTPS, set the environment variable `HTTPS` to `false`. In HTTP mode, the server uses the port 4000.
+
+Don't forget to set the VELOV_API_KEY environment variable with your own key.
+
+## API documentation
 
 The API root is `http://aurelienbertron.fr/api/`
 
