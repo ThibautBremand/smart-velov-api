@@ -61,8 +61,4 @@ GH.prototype.reset = ->
   delete this.url.query
   this.url.pathname = '/'
 
-# Gets all the paths given and merge in a new path
-GH.prototype.merge = (paths) ->
-  final
-
 module.exports = GH;

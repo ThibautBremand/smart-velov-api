@@ -9,7 +9,6 @@ path       = require 'path'
 request    = require 'request'
 gh         = new (require './lib/graphhopper')('http://aurelienbertron.fr:8989')
 _          = require 'underscore'
-polyline   = require 'polyline'
 
 # Database
 stations = require './lib/stations'
@@ -46,12 +45,13 @@ app.get '/route/velov/:start/:end', (req, res, next) ->
   endArray = req.params.end.split ','
   end = lat: endArray[0], lng: endArray[1]
 
-  stations.nearest start, (err, nearest) ->
+  #stations.best process.env.VELOV_API_KEY, start, (err, best) ->
+  stations.nearest start, (err, best) ->
     return err if err
-    stationStart = name: nearest.name, lat: nearest.position.lat, lng: nearest.position.lng
-    stations.better end, (err, better) ->
+    stationStart = name: best.name, lat: best.position.lat, lng: best.position.lng
+    stations.nearest end, (err, nearest) ->
       return err if err
-      stationEnd = name: better.name, lat: better.position.lat, lng: better.position.lng
+      stationEnd = name: nearest.name, lat: nearest.position.lat, lng: nearest.position.lng
       # Get the path to start station
       gh.route [req.params.start,"#{stationStart.lat},#{stationStart.lng}"]
       gh.doRequest {vehicle: 'foot'}, (ghErr, ghBody) ->

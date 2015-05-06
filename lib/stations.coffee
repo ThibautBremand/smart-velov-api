@@ -1,12 +1,13 @@
 fs      = require 'fs'
 log     = require('./log')(module)
-kd      = require 'kdtree'
+LA      = require 'look-alike'
 request = require 'request'
 _       = require 'underscore'
+urllib  = require 'urllib-sync'
 
 dirty = true
 stations = {}
-stationsTree = new kd.KDTree 2 # 2 dimensions for lat and lng
+stationsTree = null # 2 dimensions for lat and lng
 
 module.exports.supportedContracts = ['Lyon']
 module.exports.necessaryProperties = [
@@ -38,10 +39,11 @@ module.exports.all = ->
       stations = JSON.parse fileData
 
       # Replacing tree content
-      stationsTree = new kd.KDTree 2
+      stationsArray = []
       _.each stations, (infos, num) ->
-        stationsTree.insert infos.position.lat, infos.position.lng, infos.number
+        stationsArray.push lat: infos.position.lat, lng: infos.position.lng, number: infos.number
         return
+      stationsTree = new LA stationsArray, attributes: ['lat','lng']
 
       log.info 'Loaded stations file successfully.'
     catch e
@@ -113,26 +115,93 @@ module.exports.update = (apiKey, callback) ->
     module.exports.save JSON.parse body
     callback err, res, stations if callback
 
+getStation = (apiKey, number, callback) ->
+  request "https://api.jcdecaux.com/vls/v1/stations/#{number}?contract=Lyon&apiKey=#{apiKey}"
+    , (err, res, body) ->
+      if err
+        callback err
+      else
+        callback null, JSON.parse body
+
+module.exports.isTakeable = (apiKey, number, callback, options = {}) ->
+  if not options.minBikes?
+    options.minBikes = 2
+  if not options.minStands?
+    options.minStands = 2
+  if not options.pref?
+    options.pref = 'bikes'
+  getStation apiKey, number, (err, station) ->
+    if err
+      callback err
+    else
+      if station.status != 'OPEN'
+        callback "Station not opened"
+      if options.pref == 'bikes'
+        callback null, station.available_bikes >= options.minBikes
+      else if options.pref == 'stands'
+        callback null, station.available_bike_stands >= options.minStands
+      else
+        callback "Wrong value for preference parameter"
+
 module.exports.nearest = (position, callback) ->
   stations = module.exports.all()
 
-  nearest = stationsTree.nearest position.lat, position.lng
+  if stationsTree == null
+    err = 'Search tree not properly loaded'
+    err.status = 500
+    return callback err
+
+  nearest = stationsTree.query lat: position.lat, lng: position.lng
 
   if 0 == nearest.length
     err = 'Could not found nearest station'
     err.status = 404
     return callback err
 
-  callback null, stations["#{nearest[2]}"]
+  callback null, stations["#{nearest[0].number}"]
 
-module.exports.better = (position, callback) ->
+# ATTENTION! This method doesn't work
+module.exports.best = (apiKey, position, callback) ->
   stations = module.exports.all()
 
-  nearest = stationsTree.nearest position.lat, position.lng
+  if stationsTree == null
+    err = 'Search tree not properly loaded'
+    err.status = 500
+    return callback err
 
+  nearest = stationsTree.query lat: position.lat, lng: position.lng
   if 0 == nearest.length
     err = 'Could not found nearest station'
     err.status = 404
     return callback err
 
-  callback null, stations["#{nearest[2]}"]
+  module.exports.isTakeable apiKey, nearest.number, (err, takeable) ->
+    if err
+      callback err
+    else
+      if takeable
+        callback null, stations["#{nearest[0].number}"]
+      else
+        found = false
+        checked = [nearest[0].number]
+        k = 2
+        while not found and checked.length < 15
+          # Enlarge the search to the k-nearest stations
+          rangeStations = stationsTree.query (lat: position.lat, lng: position.lng)
+            , k: k, filter: (station) ->
+              return not _.contains checked, station.number
+          _.every rangeStations, (station) ->
+            module.exports.isTakeable apiKey, station.number, (err, okay) ->
+              if err or not okay
+                checked.push station
+                return true # continue looping
+              else
+                found = true
+                callback null, stations["#{station.number}"]
+                return false # break loop
+          if not found
+            k *= 2
+        if not found
+          err = 'Could not found available station at a decent distance'
+          err.status = 404
+          return callback err
