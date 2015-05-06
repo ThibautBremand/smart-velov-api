@@ -1,6 +1,6 @@
 URL = require('url')
 urllib = require('urllib-sync')
-http = require('http')
+request = require('request')
 _ = require('underscore')
 
 GH = (_host) ->
@@ -49,17 +49,20 @@ GH.prototype.doRequest = (_options, _callback) ->
   for point in this.points
     urlStr += "&point=#{point}"
 
-  http.get(urlStr, (res) ->
-    err = if res.statusCode == 200 then null else (code: res.statusCode, message: res.statusMessage)
-    _callback(err, res)
-  ).on('error', (e) ->
-    _callback(e)
-  )
+  request urlStr, (err, res, body) ->
+    if !err && res.statusCode == 200
+      _callback(null, body)
+    else
+      _callback(err)
   return urlStr
 
 GH.prototype.reset = ->
   this.points = []
   delete this.url.query
   this.url.pathname = '/'
+
+# Gets all the paths given and merge in a new path
+GH.prototype.merge = (paths) ->
+  final
 
 module.exports = GH;

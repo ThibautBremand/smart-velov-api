@@ -124,3 +124,15 @@ module.exports.nearest = (position, callback) ->
     return callback err
 
   callback null, stations["#{nearest[2]}"]
+
+module.exports.better = (position, callback) ->
+  stations = module.exports.all()
+
+  nearest = stationsTree.nearest position.lat, position.lng
+
+  if 0 == nearest.length
+    err = 'Could not found nearest station'
+    err.status = 404
+    return callback err
+
+  callback null, stations["#{nearest[2]}"]
