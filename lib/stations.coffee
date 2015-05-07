@@ -116,12 +116,12 @@ module.exports.update = (apiKey, callback) ->
     callback err, res, stations if callback
 
 getStation = (apiKey, number, callback) ->
-  request "https://api.jcdecaux.com/vls/v1/stations/#{number}?contract=Lyon&apiKey=#{apiKey}"
-    , (err, res, body) ->
-      if err
-        callback err
-      else
-        callback null, JSON.parse body
+  req = "https://api.jcdecaux.com/vls/v1/stations/#{number}?contract=Lyon&apiKey=#{apiKey}"
+  request req, (err, res, body) ->
+    if err
+      callback err
+    else
+      callback null, JSON.parse body
 
 module.exports.isTakeable = (apiKey, number, callback, options = {}) ->
   if not options.minBikes?
@@ -175,33 +175,35 @@ module.exports.best = (apiKey, position, callback) ->
     err.status = 404
     return callback err
 
-  module.exports.isTakeable apiKey, nearest.number, (err, takeable) ->
-    if err
-      callback err
+  module.exports.isTakeable apiKey, nearest[0].number, (err, takeable) ->
+    if err or not takeable
+      # Enlarge the search to the k-nearest stations
+      checked = [nearest[0].number]
+      k = 2
+      while checked.length < 15
+        rangeStations = stationsTree.query (lat: position.lat, lng: position.lng)
+          , k: k, filter: (station) ->
+            return not _.contains checked, station.number
+
+        # the predicate is "not Takeable"
+        # _.every returns true if all station pass the predicate (no station found)
+        # returns false if one station doesn't pass the predicate (one station found)
+        notFound = _.every rangeStations, (station) ->
+          return not module.exports.isTakeable apiKey, station.number, (err, okay) ->
+            if err or not okay
+              checked.push station
+              return true # continue looping
+            else
+              callback null, stations["#{station.number}"]
+              return false # break loop
+
+        if notFound
+          k *= 2
+        else
+          break
+      if checked.length >= 15
+        err = 'Could not found available station at a decent distance'
+        err.status = 404
+        return callback err
     else
-      if takeable
-        callback null, stations["#{nearest[0].number}"]
-      else
-        found = false
-        checked = [nearest[0].number]
-        k = 2
-        while not found and checked.length < 15
-          # Enlarge the search to the k-nearest stations
-          rangeStations = stationsTree.query (lat: position.lat, lng: position.lng)
-            , k: k, filter: (station) ->
-              return not _.contains checked, station.number
-          _.every rangeStations, (station) ->
-            module.exports.isTakeable apiKey, station.number, (err, okay) ->
-              if err or not okay
-                checked.push station
-                return true # continue looping
-              else
-                found = true
-                callback null, stations["#{station.number}"]
-                return false # break loop
-          if not found
-            k *= 2
-        if not found
-          err = 'Could not found available station at a decent distance'
-          err.status = 404
-          return callback err
+      callback null, stations["#{nearest[0].number}"]

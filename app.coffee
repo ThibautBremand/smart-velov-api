@@ -45,8 +45,7 @@ app.get '/route/velov/:start/:end', (req, res, next) ->
   endArray = req.params.end.split ','
   end = lat: endArray[0], lng: endArray[1]
 
-  #stations.best process.env.VELOV_API_KEY, start, (err, best) ->
-  stations.nearest start, (err, best) ->
+  stations.best process.env.VELOV_API_KEY, start, (err, best) ->
     return err if err
     stationStart = name: best.name, lat: best.position.lat, lng: best.position.lng
     stations.nearest end, (err, nearest) ->
